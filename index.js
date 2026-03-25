@@ -6,7 +6,10 @@ const path = require('path');
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Actualizado a gemini-2.5-flash (modelo vigente en 2026)
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+
 
 const USAGE_FILE = path.join(__dirname, 'usage.json');
 const MAX_DAILY_MESSAGES = 50; // Límite de mensajes por día
@@ -61,14 +64,33 @@ bot.on('message', async (msg) => {
         usage.users[chatId] = userCount + 1;
         saveUsage(usage);
 
-        bot.sendMessage(chatId, response);
+        // Función para enviar mensajes largos divididos
+        await sendLongMessage(chatId, response);
 
     } catch (error) {
-        console.error(error);
+        console.error("DEBUG ERROR:", error);
+
+
+        let errorMsg = "Error con la IA 😢";
+
         if (error.message.includes('API_KEY_INVALID')) {
-            bot.sendMessage(chatId, "❌ Error: La clave de API de Gemini no es válida. Configúrala en el archivo .env.");
-        } else {
-            bot.sendMessage(chatId, "Error con la IA 😢");
+            errorMsg = "❌ Error: La clave de API de Gemini no es válida.";
+        } else if (error.message.includes('SAFETY')) {
+            errorMsg = "🛡️ La IA bloqueó este mensaje por motivos de seguridad.";
+        } else if (error.message) {
+            errorMsg = `❌ Error técnico: ${error.message.substring(0, 100)}`;
         }
+
+        bot.sendMessage(chatId, errorMsg);
     }
-});
+});
+
+// Función auxiliar para enviar mensajes de más de 4096 caracteres (límite de Telegram)
+async function sendLongMessage(chatId, text) {
+    const MAX_LENGTH = 4000;
+    for (let i = 0; i < text.length; i += MAX_LENGTH) {
+        const chunk = text.substring(i, i + MAX_LENGTH);
+        await bot.sendMessage(chatId, chunk);
+    }
+}
+
