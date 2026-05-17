@@ -10,7 +10,6 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 
-
 const USAGE_FILE = path.join(__dirname, 'usage.json');
 const MAX_DAILY_MESSAGES = 50; // Límite de mensajes por día
 
